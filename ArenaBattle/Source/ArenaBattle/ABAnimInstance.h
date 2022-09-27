@@ -29,6 +29,8 @@ public:
 	FOnNextAttackCheckDelegate		OnNextAttackCheck;
 	FOnAttackHitCheckDelegate		OnAttackHitCheck;
 
+	void			SetDeadAnim() { IsDead = true; }
+
 private:
 	// Animation Notify를 감지하기 위한 함수
 	// 애니메이션을 재생할 때 지정한 구간에 Notify를 호출한다.
@@ -55,4 +57,6 @@ private:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
 	UAnimMontage*	AttackMontage;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Pawn, Meta = (AllowPrivateAccess = true))
+	bool			IsDead;
 };

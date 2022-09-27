@@ -3,6 +3,7 @@
 
 #include "ABCharacter.h"
 #include "ABAnimInstance.h"
+#include "DrawDebugHelpers.h"
 
 // Sets default values
 AABCharacter::AABCharacter()
@@ -43,6 +44,13 @@ AABCharacter::AABCharacter()
 
 	MaxCombo = 4;
 	AttackEndComboState();
+
+	// 캡슐 컴포넌트가 ABCharacter Collision Preset을 사용하도록 설정
+	GetCapsuleComponent()->SetCollisionProfileName(TEXT("ABCharacter"));
+
+	// 공격 범위를 위한 변수 초기화
+	AttackRange = 200.0f;
+	AttackRadius = 50.0f;
 }
 
 // Called when the game starts or when spawned
@@ -155,6 +163,21 @@ void AABCharacter::PostInitializeComponents()
 			ABAnim->JumpToAttackMontageSection(CurrentCombo);
 		}
 	});
+
+	ABAnim->OnAttackHitCheck.AddUObject(this, &AABCharacter::AttackCheck);
+}
+
+float AABCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float FinalDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	ABLOG(Warning, TEXT("Actor : %s took Damage : %f"), *GetName(), FinalDamage);
+
+	if (FinalDamage > 0.0f) {
+		ABAnim->SetDeadAnim();
+		SetActorEnableCollision(false);
+	}
+
+	return FinalDamage;
 }
 
 // Called to bind functionality to input
@@ -289,7 +312,8 @@ void AABCharacter::AttackStartComboState()
 	IsComboInputOn = false;
 	ABCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 0, MaxCombo - 1));
 	CurrentCombo = FMath::Clamp<int32>(CurrentCombo + 1, 1, MaxCombo);
-	ABLOG(Warning, TEXT("ABCharacter; CurrentCombo %d"), CurrentCombo);
+	// For. Debug
+	// ABLOG(Warning, TEXT("ABCharacter; CurrentCombo %d"), CurrentCombo);
 }
 
 void AABCharacter::AttackEndComboState()
@@ -297,5 +321,57 @@ void AABCharacter::AttackEndComboState()
 	IsComboInputOn = false;
 	CanNextCombo = false;
 	CurrentCombo = 0;
+}
+
+void AABCharacter::AttackCheck()
+{
+	// 물리적 충돌이 탐지된 경우 관련된 정보를 담을 구조체
+	FHitResult	HitResult;
+	// Structure that defines parameters passed into collision function
+	// 충돌 함수로 전달된 매개변수를 정의하는 구조체
+	FCollisionQueryParams Params(NAME_None, false, this);
+	
+	bool bResult = GetWorld()->SweepSingleByChannel(
+		HitResult /*FHitResult& OutHit */,
+		GetActorLocation() /* Start */,
+		GetActorLocation() + GetActorLocation() * AttackRange /* End */,
+		FQuat::Identity /* Rotation */,
+		ECollisionChannel::ECC_GameTraceChannel2 /* DefaultEngine.ini 에서 확인 가능, ECC 2번이 Attack */,
+		FCollisionShape::MakeSphere(AttackRadius) /* 충돌체 Shape*/,
+		Params);
+
+	// Debug Draw
+#if ENABLE_DRAW_DEBUG
+
+	FVector TraceVec = GetActorForwardVector() * AttackRange;
+	FVector Center = GetActorLocation() + TraceVec * 0.5f;
+	float	HalfHeight = AttackRange * 0.5f + AttackRadius;
+	FQuat	CapsuleRot = FRotationMatrix::MakeFromZ(TraceVec).ToQuat();
+	FColor	DrawColor = (bResult) ? FColor::Green : FColor::Red;
+	float	DebugLifeTime = 5.0f;
+
+	// DrawCapsule을 사용해 원이 움직인 궤적을 표현한다.
+	// 캡슐의 반지름(AttackRadius)을 탐색 시작 위치에서 끝 위치로 향하는 벡터를 구한다.
+	// 벡터의 중점 위치와 벡터 길이 절반을 대입하면 원하는 크기의 캡슐 모양을 구할 수 있다.
+	// 캡슐이 캐릭터 시선 방향으로 눕는다는 건 캡슐의 상단 방향 벡터가 시선 방향과 일치 한다는 것이다. 
+	DrawDebugCapsule(GetWorld(),
+		Center,
+		HalfHeight,
+		AttackRadius,
+		CapsuleRot,
+		DrawColor,
+		false,
+		DebugLifeTime);
+
+#endif
+	if (bResult) {
+		// 충돌 감지된 액터가 유효하면
+		if (HitResult.Actor.IsValid()) {
+			ABLOG(Warning, TEXT("Hit Actor Name : %s"), *HitResult.Actor->GetName());
+
+			FDamageEvent DamageEvent;
+			HitResult.Actor->TakeDamage(50.0f, DamageEvent, GetController(), this);
+		}
+	}
 }
 

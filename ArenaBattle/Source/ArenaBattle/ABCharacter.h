@@ -94,4 +94,7 @@ private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
 	float	AttackRadius;
 	
+	// For. Test
+	float	DeadTime = 0.0f;
+
 };

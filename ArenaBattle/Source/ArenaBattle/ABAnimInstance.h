@@ -30,6 +30,7 @@ public:
 	FOnAttackHitCheckDelegate		OnAttackHitCheck;
 
 	void			SetDeadAnim() { IsDead = true; }
+	const bool&		GetDead() const { return IsDead; }
 
 private:
 	// Animation Notify를 감지하기 위한 함수

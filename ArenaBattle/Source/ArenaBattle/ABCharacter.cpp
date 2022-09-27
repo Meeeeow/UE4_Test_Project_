@@ -143,6 +143,14 @@ void AABCharacter::Tick(float DeltaTime)
 		break;
 	}
 
+	if (ABAnim->GetDead()) {
+		DeadTime += DeltaTime;
+		if (DeadTime > 2.0f) {
+			Destroy();
+			EndPlay(EEndPlayReason::Type::RemovedFromWorld);
+		}
+	}
+
 }
 
 void AABCharacter::PostInitializeComponents()

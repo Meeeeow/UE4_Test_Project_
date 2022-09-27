@@ -3,6 +3,7 @@
 
 #include "ABCharacter.h"
 #include "ABAnimInstance.h"
+#include "ABWeapon.h"
 #include "DrawDebugHelpers.h"
 
 // Sets default values
@@ -51,6 +52,25 @@ AABCharacter::AABCharacter()
 	// 공격 범위를 위한 변수 초기화
 	AttackRange = 200.0f;
 	AttackRadius = 50.0f;
+
+	// Chapter 10. 아이템 상자와 무기 제작
+	// 생성자가 아닌 Weapon Actor를 생성 후 부착하는 형태로 바뀜
+	//// 무기 장착
+	//// 무기를 부착할 스켈레탈 hand_rSocket의 이름 선언
+	//FName WeaponSocket(TEXT("hand_rSocket"));
+
+	//if (GetMesh()->DoesSocketExist(WeaponSocket)) {
+	//	Weapon = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WEAPON"));
+	//	// 무기 경로
+	//	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SK_WEAPON(TEXT("/Game/InfinityBladeWeapons/Weapons/Blade/Swords/Blade_BlackKnight/SK_Blade_BlackKnight.SK_Blade_BlackKnight"));
+
+	//	if (SK_WEAPON.Succeeded()) {
+	//		// SK_WEAPON 생성 성공하면 Weapon에 해당 오브젝트를 등록
+	//		Weapon->SetSkeletalMesh(SK_WEAPON.Object);
+	//	}
+	//	// 등록한 무기를 hand_rSocket에 부착
+	//	Weapon->SetupAttachment(GetMesh(), WeaponSocket);
+	//}
 }
 
 // Called when the game starts or when spawned
@@ -58,6 +78,13 @@ void AABCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	FName WeaponSocket(TEXT("hand_rSocket"));
+	Weapon = GetWorld()->SpawnActor<AABWeapon>(FVector::ZeroVector, FRotator::ZeroRotator);
+
+	if (nullptr != Weapon) {
+		Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocket);
+	}
+
 }
 
 void AABCharacter::SetControlMode(EControlMode NewControlMode)
@@ -146,6 +173,7 @@ void AABCharacter::Tick(float DeltaTime)
 	if (ABAnim->GetDead()) {
 		DeadTime += DeltaTime;
 		if (DeadTime > 2.0f) {
+			Weapon->IsDead();
 			Destroy();
 			EndPlay(EEndPlayReason::Type::RemovedFromWorld);
 		}

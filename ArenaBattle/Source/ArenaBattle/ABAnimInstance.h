@@ -21,6 +21,7 @@ public:
 	UABAnimInstance();
 
 	virtual	void	NativeUpdateAnimation(float DeltaSeconds) override;
+
 	void			PlayAttackMontage();
 	void			JumpToAttackMontageSection(int32 NewSection);
 

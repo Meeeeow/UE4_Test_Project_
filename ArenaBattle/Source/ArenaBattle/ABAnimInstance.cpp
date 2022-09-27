@@ -9,8 +9,9 @@ UABAnimInstance::UABAnimInstance()
 	IsInAir = false;
 
 	static ConstructorHelpers::FObjectFinder<UAnimMontage> ATTACK_MONTAGE(TEXT("/Game/Book/Animations/SK_Mannequin_Skeleton_Montage.SK_Mannequin_Skeleton_Montage"));
-
+	
 	if (ATTACK_MONTAGE.Succeeded()) {
+		ABLOG(Warning, TEXT("AttackMontage Create"));
 		AttackMontage = ATTACK_MONTAGE.Object;
 	}
 }
@@ -60,5 +61,7 @@ void UABAnimInstance::AnimNotify_NextAttackCheck()
 FName UABAnimInstance::GetAttackMontageSectionName(int32 Section)
 {
 	ABCHECK(FMath::IsWithinInclusive<int32>(Section, 1, 4), NAME_None);
+	
+	ABLOG(Warning, TEXT("%s"), *FString::Printf(TEXT("Attack%d"), Section));
 	return FName(*FString::Printf(TEXT("Attack%d"),Section));
 }

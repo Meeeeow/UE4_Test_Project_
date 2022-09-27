@@ -154,7 +154,7 @@ void AABCharacter::PostInitializeComponents()
 			AttackStartComboState();
 			ABAnim->JumpToAttackMontageSection(CurrentCombo);
 		}
-		});
+	});
 }
 
 // Called to bind functionality to input
@@ -262,14 +262,12 @@ void AABCharacter::Attack()
 {
 	if (IsAttacking) {
 		ABCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 1, MaxCombo));
-		ABLOG(Warning, TEXT("Attack%d"), CurrentCombo);
 		if (CanNextCombo) {
 			IsComboInputOn = true;
 		}
 	}
 	else {
 		ABCHECK(CurrentCombo == 0);
-		ABLOG(Warning, TEXT("Attack%d"), CurrentCombo);
 		AttackStartComboState();
 		ABAnim->PlayAttackMontage();
 		ABAnim->JumpToAttackMontageSection(CurrentCombo);
@@ -291,6 +289,7 @@ void AABCharacter::AttackStartComboState()
 	IsComboInputOn = false;
 	ABCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 0, MaxCombo - 1));
 	CurrentCombo = FMath::Clamp<int32>(CurrentCombo + 1, 1, MaxCombo);
+	ABLOG(Warning, TEXT("ABCharacter; CurrentCombo %d"), CurrentCombo);
 }
 
 void AABCharacter::AttackEndComboState()

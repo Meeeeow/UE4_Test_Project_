@@ -52,6 +52,8 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Weapon)
 	class AABWeapon*	CurrentWeapon;
 
+	UPROPERTY(VisibleAnywhere, Category = Stat)
+	class UABCharacterStatComponent*		CharacterStat;
 
 	//UPROPERTY(VisibleAnywhere, Category = Weapon)
 	//USkeletalMeshComponent*		Weapon;
@@ -61,6 +63,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 	UCameraComponent*			Camera;
+
+	UPROPERTY(VisibleAnywhere, Category = UI)
+	class UWidgetComponent*		HPBarWidget;
 
 private:
 	void	UpDown(float NewAxisValue);

@@ -38,6 +38,5 @@ void AABWeapon::Tick(float DeltaTime)
 void AABWeapon::IsDead()
 {
 	Destroy();
-	EndPlay(EEndPlayReason::Type::RemovedFromWorld);
 }
 

@@ -78,12 +78,12 @@ void AABCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	FName WeaponSocket(TEXT("hand_rSocket"));
-	Weapon = GetWorld()->SpawnActor<AABWeapon>(FVector::ZeroVector, FRotator::ZeroRotator);
+	//FName WeaponSocket(TEXT("hand_rSocket"));
+	//Weapon = GetWorld()->SpawnActor<AABWeapon>(FVector::ZeroVector, FRotator::ZeroRotator);
 
-	if (nullptr != Weapon) {
-		Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocket);
-	}
+	//if (nullptr != Weapon) {
+	//	Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocket);
+	//}
 
 }
 
@@ -173,9 +173,11 @@ void AABCharacter::Tick(float DeltaTime)
 	if (ABAnim->GetDead()) {
 		DeadTime += DeltaTime;
 		if (DeadTime > 2.0f) {
-			Weapon->IsDead();
+			//Weapon->IsDead();
+			if (CurrentWeapon != nullptr) {
+				CurrentWeapon->IsDead();
+			}
 			Destroy();
-			EndPlay(EEndPlayReason::Type::RemovedFromWorld);
 		}
 	}
 
@@ -231,6 +233,22 @@ void AABCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PlayerInputComponent->BindAxis(TEXT("LeftRight"), this, &AABCharacter::LeftRight);
 	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AABCharacter::LookUp);
 	PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AABCharacter::Turn);
+}
+
+bool AABCharacter::CanSetWeapon()
+{
+	return (nullptr == CurrentWeapon);
+}
+
+void AABCharacter::SetWeapon(AABWeapon* NewWeapon)
+{
+	ABCHECK(nullptr != NewWeapon && nullptr == CurrentWeapon);
+	FName WeaponSocket(TEXT("hand_rSocket"));
+	if (nullptr != NewWeapon) {
+		NewWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocket);
+		NewWeapon->SetOwner(this);
+		CurrentWeapon = NewWeapon;
+	}
 }
 
 void AABCharacter::UpDown(float NewAxisValue)
@@ -319,6 +337,11 @@ void AABCharacter::ViewChange()
 
 void AABCharacter::Attack()
 {
+	if (nullptr == CurrentWeapon) {
+		return;
+	}
+
+
 	if (IsAttacking) {
 		ABCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 1, MaxCombo));
 		if (CanNextCombo) {

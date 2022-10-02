@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "ABCharacter.generated.h"
 
+DECLARE_MULTICAST_DELEGATE(FOnAttackEndDelegate);
+
 UCLASS()
 class ARENABATTLE_API AABCharacter : public ACharacter
 {
@@ -21,10 +23,11 @@ protected:
 
 	enum class EControlMode : unsigned int {
 		GTA			= 0,
-		DIABLO		= 1
+		DIABLO		= 1,
+		NPC			= 2
 	};
 
-	void	SetControlMode(EControlMode NewControlMode);
+	void			SetControlMode(EControlMode NewControlMode);
 
 	EControlMode	CurrentControlMode = EControlMode::GTA;
 	FVector			DirectionToMove = FVector::ZeroVector;
@@ -39,12 +42,14 @@ protected:
 
 public:	
 	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-	virtual	void PostInitializeComponents() override;
-	virtual	float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	virtual void	Tick(float DeltaTime) override;
+	virtual	void	PostInitializeComponents() override;
+
+	virtual	float	TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	virtual void	PossessedBy(AController* NewController) override;
 
 	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void	SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	bool			CanSetWeapon();
 	void			SetWeapon(class AABWeapon* NewWeapon);
@@ -74,7 +79,11 @@ private:
 	void	Turn(float NewAxisValue);
 
 	void	ViewChange();
+
+public:	// AIController에서 공격 명령을 내릴 수 있도록 Public으로 접근자 변경
 	void	Attack();
+	FOnAttackEndDelegate	OnAttackEnd;
+private:
 
 	UFUNCTION()
 	void	OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);

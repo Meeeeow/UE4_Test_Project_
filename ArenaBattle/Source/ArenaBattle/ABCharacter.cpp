@@ -8,6 +8,7 @@
 #include "DrawDebugHelpers.h"
 #include "Components/WidgetComponent.h"
 #include "ABCharacterWidget.h"
+#include "ABAIController.h"
 
 // Sets default values
 AABCharacter::AABCharacter()
@@ -88,6 +89,8 @@ AABCharacter::AABCharacter()
 		HPBarWidget->SetDrawSize(FVector2D(150.0f, 50.0f));
 	}
 
+	AIControllerClass = AABAIController::StaticClass();
+	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 }
 
 // Called when the game starts or when spawned
@@ -149,6 +152,12 @@ void AABCharacter::SetControlMode(EControlMode NewControlMode)
 		GetCharacterMovement()->bOrientRotationToMovement = false;
 		GetCharacterMovement()->RotationRate = FRotator(0.0f, 180.0f, 0.0f);
 		GetCharacterMovement()->bUseControllerDesiredRotation = true;
+		break;
+	case EControlMode::NPC:
+		bUseControllerRotationYaw = false;
+		GetCharacterMovement()->bUseControllerDesiredRotation = false;
+		GetCharacterMovement()->bOrientRotationToMovement = true;
+		GetCharacterMovement()->RotationRate = FRotator(0.0f, 140.0f, 0.0f);
 		break;
 	default:
 		break;
@@ -255,6 +264,20 @@ float AABCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 		SetActorEnableCollision(false);
 	}*/
 	return FinalDamage;
+}
+
+void AABCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (IsPlayerControlled()) {
+		SetControlMode(EControlMode::DIABLO);
+		GetCharacterMovement()->MaxWalkSpeed = 600.0f;
+	}
+	else {
+		SetControlMode(EControlMode::NPC);
+		GetCharacterMovement()->MaxWalkSpeed = 300.0f;
+	}
 }
 
 // Called to bind functionality to input
@@ -376,7 +399,7 @@ void AABCharacter::ViewChange()
 
 void AABCharacter::Attack()
 {
-	if (nullptr == CurrentWeapon) {
+	if (nullptr == CurrentWeapon && (CurrentControlMode != EControlMode::NPC) ) {
 		return;
 	}
 
@@ -402,6 +425,8 @@ void AABCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted
 	ABCHECK(CurrentCombo > 0);
 	IsAttacking = false;
 	AttackEndComboState();
+
+	OnAttackEnd.Broadcast();
 }
 
 void AABCharacter::AttackStartComboState()

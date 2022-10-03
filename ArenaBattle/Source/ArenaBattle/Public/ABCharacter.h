@@ -92,6 +92,8 @@ private:
 	void	AttackEndComboState();
 	void	AttackCheck();
 
+	void	OnAssetLoadComplete();
+
 private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
 	bool	IsAttacking;
@@ -118,6 +120,10 @@ private:
 	float	AttackRadius;
 	
 	// For. Test
-	float	DeadTime = 0.0f;
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Dead, Meta = (AllowPrivateAccess = true))
+	float	DeadTime;
+
+	FSoftObjectPath							CharacterAssetToLoad = FSoftObjectPath(nullptr);
+	TSharedPtr<struct FStreamableHandle>	AssetStreamingHandle;
 
 };

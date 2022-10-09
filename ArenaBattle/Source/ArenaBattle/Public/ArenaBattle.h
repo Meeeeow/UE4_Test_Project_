@@ -4,6 +4,16 @@
 
 #include "EngineMinimal.h"
 
+// 선언한 enum을 Blueprint에서 사용하기 위해 UENUM(BlueprintType)을 선언한다.
+UENUM(BlueprintType)
+enum class ECharacterState : uint8 {
+	PREINT			= 0,
+	LOADING			= 1,
+	READY			= 2,
+	DEAD			= 3
+};
+
+
 DECLARE_LOG_CATEGORY_EXTERN(ArenaBattle, Log, All);
 
 #define ABLOG_CALLINFO (FString(__FUNCTION__) + TEXT("(") + FString::FromInt(__LINE__) + TEXT(")"))

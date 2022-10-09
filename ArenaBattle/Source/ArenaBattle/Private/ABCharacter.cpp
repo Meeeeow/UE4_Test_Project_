@@ -11,6 +11,9 @@
 #include "ABAIController.h"
 #include "ABCharacterSetting.h"
 #include "ABGameInstance.h"
+#include "ABPlayerController.h"
+#include "ABPlayerState.h"
+#include "ABHUDWidget.h"
 
 // Sets default values
 AABCharacter::AABCharacter()
@@ -103,7 +106,111 @@ AABCharacter::AABCharacter()
 		}
 	}
 
-	DeadTime = 0.0f;
+	/*
+	DeadTime = 0.0f; 
+	*/
+
+	AssetIndex = 4;
+
+	SetActorHiddenInGame(true);
+	HPBarWidget->SetHiddenInGame(true);
+	SetCanBeDamaged(false);
+
+	DeadTimer = 5.0f;
+
+}
+
+void AABCharacter::SetCharacterState(ECharacterState NewState)
+{
+	ABCHECK(NewState != CurrentState);
+	CurrentState = NewState;
+
+	switch (CurrentState)
+	{
+	case ECharacterState::LOADING:
+	{
+		if (bIsPlayer) {
+			DisableInput(ABPlayerController);
+
+			ABPlayerController->GetHUDWidget()->BindCharacterStat(CharacterStat);
+
+			auto	ABPlayerState = Cast<AABPlayerState>(GetPlayerState());
+			ABCHECK(ABPlayerState != nullptr);
+
+			CharacterStat->SetNewLevel(ABPlayerState->GetCharacterLevel());
+		}
+		SetActorHiddenInGame(true);
+		HPBarWidget->SetHiddenInGame(true);
+		SetCanBeDamaged(false);
+		break;
+	}
+	case ECharacterState::READY:
+	{
+		SetActorHiddenInGame(false);
+		HPBarWidget->SetHiddenInGame(false);
+		SetCanBeDamaged(true);
+
+		CharacterStat->OnHPIsZero.AddLambda([this]() -> void {
+			SetCharacterState(ECharacterState::DEAD);
+			});
+		auto	CharacterWidget = Cast<UABCharacterWidget>(HPBarWidget->GetUserWidgetObject());
+		ABCHECK(nullptr != CharacterWidget);
+
+		CharacterWidget->BindCharacterStat(CharacterStat);
+
+		if (bIsPlayer) {
+			SetControlMode(EControlMode::DIABLO);
+			GetCharacterMovement()->MaxWalkSpeed = 600.0f;
+			EnableInput(ABPlayerController);
+		}
+		else {
+			SetControlMode(EControlMode::NPC);
+			GetCharacterMovement()->MaxWalkSpeed = 400.0f;
+			ABAIController->RunAI();
+		}
+		break;
+	}
+	case ECharacterState::DEAD:
+	{
+		SetActorEnableCollision(false);
+		GetMesh()->SetHiddenInGame(true);
+		HPBarWidget->SetHiddenInGame(true);
+		ABAnim->SetDeadAnim();
+		SetCanBeDamaged(false);
+
+		if (bIsPlayer) {
+			DisableInput(ABPlayerController);
+		}
+		else {
+			ABAIController->StopAI();
+		}
+
+		GetWorld()->GetTimerManager().SetTimer(DeadTimerHandle, FTimerDelegate::CreateLambda([this]()->void {
+
+			if (bIsPlayer) {
+				ABPlayerController->RestartLevel();
+			}
+			else {
+				Destroy();
+			}
+
+			}), DeadTimer, false);
+
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+ECharacterState AABCharacter::GetCharacterState() const
+{
+	return CurrentState;
+}
+
+int32 AABCharacter::GetExp() const
+{
+	return CharacterStat->GetDropExp();
 }
 
 // Called when the game starts or when spawned
@@ -119,6 +226,10 @@ void AABCharacter::BeginPlay()
 	//}
 
 	
+	
+
+	// Chapter 14. 506p 에서 수정됨.
+	/*
 	auto CharacterWidget = Cast<UABCharacterWidget>(HPBarWidget->GetUserWidgetObject());
 	
 	if (nullptr != CharacterWidget) {
@@ -137,7 +248,35 @@ void AABCharacter::BeginPlay()
 			AssetStreamingHandle = ABGameInstance->StreamableManager.RequestAsyncLoad(
 				CharacterAssetToLoad, FStreamableDelegate::CreateUObject(this, &AABCharacter::OnAssetLoadComplete));
 		}
+	}*/
+
+	bIsPlayer = IsPlayerControlled();
+	if (bIsPlayer) {
+		ABPlayerController = Cast<AABPlayerController>(GetController());
+		ABCHECK(nullptr != ABPlayerController);
 	}
+	else {
+		ABAIController = Cast<AABAIController>(GetController());
+		ABCHECK(nullptr != ABAIController);
+	}
+
+	auto	DefaultSetting = GetDefault<UABCharacterSetting>();
+
+	if (bIsPlayer) {
+		AssetIndex = 4;
+	}
+	else {
+		AssetIndex = FMath::RandRange(0, DefaultSetting->CharacterAssets.Num() - 1);
+	}
+
+	CharacterAssetToLoad = DefaultSetting->CharacterAssets[AssetIndex];
+	auto	ABGameInstance = Cast<UABGameInstance>(GetGameInstance());
+	ABCHECK(nullptr != ABGameInstance);
+
+	AssetStreamingHandle = ABGameInstance->StreamableManager.RequestAsyncLoad(
+		CharacterAssetToLoad, FStreamableDelegate::CreateUObject(this, &AABCharacter::OnAssetLoadComplete));
+
+	SetCharacterState(ECharacterState::LOADING);
 }
 
 void AABCharacter::SetControlMode(EControlMode NewControlMode)
@@ -229,16 +368,17 @@ void AABCharacter::Tick(float DeltaTime)
 		break;
 	}
 
-	if (ABAnim->GetDead()) {
-		DeadTime += DeltaTime;
-		if (DeadTime > 2.0f) {
-			//Weapon->IsDead();
-			if (CurrentWeapon != nullptr) {
-				CurrentWeapon->IsDead();
-			}
-			Destroy();
-		}
-	}
+
+	//if (ABAnim->GetDead()) {
+	//	DeadTime += DeltaTime;
+	//	if (DeadTime > 2.0f) {
+	//		//Weapon->IsDead();
+	//		if (CurrentWeapon != nullptr) {
+	//			CurrentWeapon->IsDead();
+	//		}
+	//		Destroy();
+	//	}
+	//}
 
 }
 
@@ -263,11 +403,12 @@ void AABCharacter::PostInitializeComponents()
 
 	ABAnim->OnAttackHitCheck.AddUObject(this, &AABCharacter::AttackCheck);
 
-	CharacterStat->OnHPIsZero.AddLambda([this]() -> void {
+	// Chapter 14. 508p에서 수정됨
+	/*CharacterStat->OnHPIsZero.AddLambda([this]() -> void {
 		ABLOG(Warning, TEXT("OnHPIsZero"));
 		ABAnim->SetDeadAnim();
 		SetActorEnableCollision(false);
-		});
+		});*/
 
 
 	// 4.21 버전부터 위젯의 초기화 시점이 PostInitializeComponents 에서 BeginPlay로 변경 됨
@@ -287,6 +428,18 @@ float AABCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 	ABLOG(Warning, TEXT("Actor : %s took Damage : %f"), *GetName(), FinalDamage);
 
 	CharacterStat->SetDamage(FinalDamage);
+
+	if (CurrentState == ECharacterState::DEAD) {
+
+		if (EventInstigator->IsPlayerController()) {
+
+			auto ABController = Cast<AABPlayerController>(EventInstigator);
+			ABCHECK(nullptr != ABController, 0.0f);
+			ABController->NPCKill(this);
+
+		}
+
+	}
 	// Chapter 11. 370p에서 변경
 	/*if (FinalDamage > 0.0f) {
 		ABAnim->SetDeadAnim();
@@ -299,14 +452,15 @@ void AABCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	if (IsPlayerControlled()) {
+	// Chapter 14. 508p 에서 수정됨
+	/*if (IsPlayerControlled()) {
 		SetControlMode(EControlMode::DIABLO);
 		GetCharacterMovement()->MaxWalkSpeed = 600.0f;
 	}
 	else {
 		SetControlMode(EControlMode::NPC);
 		GetCharacterMovement()->MaxWalkSpeed = 300.0f;
-	}
+	}*/
 }
 
 // Called to bind functionality to input
@@ -533,7 +687,13 @@ void AABCharacter::OnAssetLoadComplete()
 
 	AssetStreamingHandle.Reset();
 
-	if (nullptr != AssetLoaded) {
+	ABCHECK(nullptr != AssetLoaded);
+	GetMesh()->SetSkeletalMesh(AssetLoaded);
+
+	SetCharacterState(ECharacterState::READY);
+
+	// Chapter 14. 508p에서 수정됨
+	/*if (nullptr != AssetLoaded) {
 		GetMesh()->SetSkeletalMesh(AssetLoaded);
-	}
+	}*/
 }

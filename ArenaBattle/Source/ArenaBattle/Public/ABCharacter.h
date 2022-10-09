@@ -16,7 +16,10 @@ class ARENABATTLE_API AABCharacter : public ACharacter
 public:
 	// Sets default values for this character's properties
 	AABCharacter();
+	void			SetCharacterState(ECharacterState NewState);
+	ECharacterState	GetCharacterState() const;
 
+	int32			GetExp() const;
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -40,6 +43,7 @@ protected:
 	float			ArmLengthSpeed = 0.0f;
 	float			ArmRotationSpeed = 0.0f;
 
+
 public:	
 	// Called every frame
 	virtual void	Tick(float DeltaTime) override;
@@ -55,10 +59,10 @@ public:
 	void			SetWeapon(class AABWeapon* NewWeapon);
 
 	UPROPERTY(VisibleAnywhere, Category = Weapon)
-	class AABWeapon*	CurrentWeapon;
+	class		AABWeapon*	CurrentWeapon;
 
 	UPROPERTY(VisibleAnywhere, Category = Stat)
-	class UABCharacterStatComponent*		CharacterStat;
+	class		UABCharacterStatComponent*		CharacterStat;
 
 	//UPROPERTY(VisibleAnywhere, Category = Weapon)
 	//USkeletalMeshComponent*		Weapon;
@@ -70,60 +74,78 @@ public:
 	UCameraComponent*			Camera;
 
 	UPROPERTY(VisibleAnywhere, Category = UI)
-	class UWidgetComponent*		HPBarWidget;
+	class		UWidgetComponent*		HPBarWidget;
 
 private:
-	void	UpDown(float NewAxisValue);
-	void	LeftRight(float NewAxisValue);
-	void	LookUp(float NewAxisValue);
-	void	Turn(float NewAxisValue);
+	void		UpDown(float NewAxisValue);
+	void		LeftRight(float NewAxisValue);
+	void		LookUp(float NewAxisValue);
+	void		Turn(float NewAxisValue);
 
-	void	ViewChange();
+	void		ViewChange();
 
 public:	// AIController에서 공격 명령을 내릴 수 있도록 Public으로 접근자 변경
-	void	Attack();
+	void		Attack();
 	FOnAttackEndDelegate	OnAttackEnd;
 private:
 
 	UFUNCTION()
-	void	OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	void		OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
-	void	AttackStartComboState();
-	void	AttackEndComboState();
-	void	AttackCheck();
+	void		AttackStartComboState();
+	void		AttackEndComboState();
+	void		AttackCheck();
 
-	void	OnAssetLoadComplete();
+	void		OnAssetLoadComplete();
 
 private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
-	bool	IsAttacking;
+	bool		IsAttacking;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
-	bool	CanNextCombo;
+	bool		CanNextCombo;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
-	bool	IsComboInputOn;
+	bool		IsComboInputOn;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
-	int32	CurrentCombo;
+	int32		CurrentCombo;
 	
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
-	int32	MaxCombo;
+	int32		MaxCombo;
 
 	UPROPERTY()
-	class   UABAnimInstance*	ABAnim;
+	class		UABAnimInstance*	ABAnim;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
-	float	AttackRange;
+	float		AttackRange;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
-	float	AttackRadius;
+	float		AttackRadius;
 	
-	// For. Test
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Dead, Meta = (AllowPrivateAccess = true))
-	float	DeadTime;
+	// For. Test / Chapter 14. 512p에서 DeadTimer 추가 
+	/*UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Dead, Meta = (AllowPrivateAccess = true))
+	float		DeadTime;*/
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = State, Meta = (AllowPrivateAccess = true))
+	float		DeadTimer;
+
+	FTimerHandle	DeadTimerHandle = {};
+
+	int32		AssetIndex = 0;
 
 	FSoftObjectPath							CharacterAssetToLoad = FSoftObjectPath(nullptr);
 	TSharedPtr<struct FStreamableHandle>	AssetStreamingHandle;
 
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = State, Meta = (AllowPrivateAccess = true))
+	ECharacterState		CurrentState;
+
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = State, Meta = (AllowPrivateAccess = true))
+	bool				bIsPlayer;
+
+	UPROPERTY()
+	class		AABAIController*		ABAIController;
+
+	UPROPERTY()
+	class		AABPlayerController*	ABPlayerController;
 };

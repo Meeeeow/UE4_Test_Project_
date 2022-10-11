@@ -14,6 +14,7 @@
 #include "ABPlayerController.h"
 #include "ABPlayerState.h"
 #include "ABHUDWidget.h"
+#include "ABGameMode.h"
 
 // Sets default values
 AABCharacter::AABCharacter()
@@ -63,7 +64,7 @@ AABCharacter::AABCharacter()
 	GetCapsuleComponent()->SetCollisionProfileName(TEXT("ABCharacter"));
 
 	// 공격 범위를 위한 변수 초기화
-	AttackRange = 200.0f;
+	AttackRange = 80.0f;
 	AttackRadius = 50.0f;
 
 	// Chapter 10. 아이템 상자와 무기 제작
@@ -136,8 +137,20 @@ void AABCharacter::SetCharacterState(ECharacterState NewState)
 
 			auto	ABPlayerState = Cast<AABPlayerState>(GetPlayerState());
 			ABCHECK(ABPlayerState != nullptr);
-
+			
 			CharacterStat->SetNewLevel(ABPlayerState->GetCharacterLevel());
+		}
+		else {
+
+			auto ABGameMode = Cast<AABGameMode>(GetWorld()->GetAuthGameMode());
+			ABCHECK(nullptr != ABGameMode);
+
+			int32	TargetLevel = FMath::CeilToInt((float)ABGameMode->GetScore() * 0.8f);
+			int32	FinalLevel = FMath::Clamp<int32>(TargetLevel, 1, 20);
+
+			ABLOG(Warning, TEXT("New NPC Level : %d"), FinalLevel);
+			CharacterStat->SetNewLevel(FinalLevel);
+
 		}
 		SetActorHiddenInGame(true);
 		HPBarWidget->SetHiddenInGame(true);
@@ -188,7 +201,10 @@ void AABCharacter::SetCharacterState(ECharacterState NewState)
 		GetWorld()->GetTimerManager().SetTimer(DeadTimerHandle, FTimerDelegate::CreateLambda([this]()->void {
 
 			if (bIsPlayer) {
-				ABPlayerController->RestartLevel();
+				ABPlayerController->ShowResultUI();
+
+				/* Chapter 15. 617p에서 수정됨 */
+				// ABPlayerController->RestartLevel();
 			}
 			else {
 				Destroy();
@@ -211,6 +227,18 @@ ECharacterState AABCharacter::GetCharacterState() const
 int32 AABCharacter::GetExp() const
 {
 	return CharacterStat->GetDropExp();
+}
+
+float AABCharacter::GetFinalAttackRange() const
+{
+	return (nullptr != CurrentWeapon) ? CurrentWeapon->GetAttackRange() + AttackRange : AttackRange;
+}
+
+float AABCharacter::GetFinalAttackDamage() const
+{
+	float AttackDamage = (nullptr != CurrentWeapon) ? (CharacterStat->GetAttack() + CurrentWeapon->GetAttackDamage()) : CharacterStat->GetAttack();
+	float AttackModifier = (nullptr != CurrentWeapon) ? CurrentWeapon->GetAttackModifier() : 1.0f;
+	return AttackDamage * AttackModifier;
 }
 
 // Called when the game starts or when spawned
@@ -263,7 +291,13 @@ void AABCharacter::BeginPlay()
 	auto	DefaultSetting = GetDefault<UABCharacterSetting>();
 
 	if (bIsPlayer) {
-		AssetIndex = 4;
+		/* Chapter 15. 597p에서 수정됨 */
+		// AssetIndex = 4;
+		// 
+
+		auto	ABPlayerState = Cast<AABPlayerState>(GetPlayerState());
+		ABCHECK(nullptr != ABPlayerState);
+		AssetIndex = ABPlayerState->GetCharacterIndex();
 	}
 	else {
 		AssetIndex = FMath::RandRange(0, DefaultSetting->CharacterAssets.Num() - 1);
@@ -482,12 +516,22 @@ void AABCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 bool AABCharacter::CanSetWeapon()
 {
-	return (nullptr == CurrentWeapon);
+	return true;
 }
 
 void AABCharacter::SetWeapon(AABWeapon* NewWeapon)
 {
-	ABCHECK(nullptr != NewWeapon && nullptr == CurrentWeapon);
+	/* Chapter 15. 564p 에서 수정됨 */
+	//ABCHECK(nullptr != NewWeapon && nullptr == CurrentWeapon);
+
+	ABCHECK(nullptr != NewWeapon);
+
+	if (nullptr != CurrentWeapon) {
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CurrentWeapon->Destroy();
+		CurrentWeapon = nullptr;
+	}
+
 	FName WeaponSocket(TEXT("hand_rSocket"));
 	if (nullptr != NewWeapon) {
 		NewWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocket);
@@ -582,10 +626,6 @@ void AABCharacter::ViewChange()
 
 void AABCharacter::Attack()
 {
-	if (nullptr == CurrentWeapon && (CurrentControlMode != EControlMode::NPC) ) {
-		return;
-	}
-
 
 	if (IsAttacking) {
 		ABCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 1, MaxCombo));
@@ -631,6 +671,8 @@ void AABCharacter::AttackEndComboState()
 
 void AABCharacter::AttackCheck()
 {
+	float FinalAttackRange = GetFinalAttackRange();
+
 	// 물리적 충돌이 탐지된 경우 관련된 정보를 담을 구조체
 	FHitResult	HitResult;
 	// Structure that defines parameters passed into collision function
@@ -640,7 +682,7 @@ void AABCharacter::AttackCheck()
 	bool bResult = GetWorld()->SweepSingleByChannel(
 		HitResult /*FHitResult& OutHit */,
 		GetActorLocation() /* Start */,
-		GetActorLocation() + GetActorLocation() * AttackRange /* End */,
+		GetActorLocation() + GetActorLocation() * FinalAttackRange /* End */,
 		FQuat::Identity /* Rotation */,
 		ECollisionChannel::ECC_GameTraceChannel2 /* DefaultEngine.ini 에서 확인 가능, ECC 2번이 Attack */,
 		FCollisionShape::MakeSphere(AttackRadius) /* 충돌체 Shape*/,
@@ -649,9 +691,9 @@ void AABCharacter::AttackCheck()
 	// Debug Draw
 #if ENABLE_DRAW_DEBUG
 
-	FVector TraceVec = GetActorForwardVector() * AttackRange;
+	FVector TraceVec = GetActorForwardVector() * FinalAttackRange;
 	FVector Center = GetActorLocation() + TraceVec * 0.5f;
-	float	HalfHeight = AttackRange * 0.5f + AttackRadius;
+	float	HalfHeight = FinalAttackRange * 0.5f + AttackRadius;
 	FQuat	CapsuleRot = FRotationMatrix::MakeFromZ(TraceVec).ToQuat();
 	FColor	DrawColor = (bResult) ? FColor::Green : FColor::Red;
 	float	DebugLifeTime = 5.0f;
@@ -676,7 +718,7 @@ void AABCharacter::AttackCheck()
 			ABLOG(Warning, TEXT("Hit Actor Name : %s"), *HitResult.Actor->GetName());
 
 			FDamageEvent DamageEvent;
-			HitResult.Actor->TakeDamage(CharacterStat->GetAttack(), DamageEvent, GetController(), this);
+			HitResult.Actor->TakeDamage(GetFinalAttackDamage(), DamageEvent, GetController(), this);
 		}
 	}
 }

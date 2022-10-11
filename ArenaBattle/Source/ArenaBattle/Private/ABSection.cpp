@@ -80,7 +80,7 @@ AABSection::AABSection()
 	bNoBattle = false;
 
 	EnemySpawnTime = 2.0f;
-	ItemBoxSpawnTime = 5.0f;
+	ItemBoxSpawnTime = 1.0f;
 }
 
 void AABSection::OnConstruction(const FTransform& Transform)

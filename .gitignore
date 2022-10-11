@@ -511,5 +511,6 @@ ArenaBattle/Content/StarterContent/
 *_BuiltData.uasset
 *.uasset
 *.umap
+*.pak
 
 DerivedDataCache/*

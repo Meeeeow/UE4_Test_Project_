@@ -41,6 +41,13 @@ void AABPlayerController::PostInitializeComponents()
 void AABPlayerController::OnPossess(APawn* aPawn)
 {
 	Super::OnPossess(aPawn);
+
+	HUDWidget = CreateWidget<UABHUDWidget>(this, HUDWidgetClass);
+	ABCHECK(nullptr != HUDWidget);
+	HUDWidget->AddToViewport();
+
+	ResultWidget = CreateWidget<UABGameplayResultWidget>(this, ResultWidgetClass);
+	ABCHECK(nullptr != ResultWidget);
 }
 
 UABHUDWidget* AABPlayerController::GetHUDWidget() const
@@ -91,12 +98,13 @@ void AABPlayerController::BeginPlay()
 	//FInputModeGameOnly InputMode;
 	//SetInputMode(InputMode);
 
-	HUDWidget = CreateWidget<UABHUDWidget>(this, HUDWidgetClass);
-	ABCHECK(nullptr != HUDWidget);
-	HUDWidget->AddToViewport();
-
-	ResultWidget = CreateWidget<UABGameplayResultWidget>(this, ResultWidgetClass);
-	ABCHECK(nullptr != ResultWidget);
+	/* 예제 패키징 오류 해결을 위해 수정됨 */
+	// HUDWidget = CreateWidget<UABHUDWidget>(this, HUDWidgetClass);
+	// ABCHECK(nullptr != HUDWidget);
+	// HUDWidget->AddToViewport();
+	// 
+	// ResultWidget = CreateWidget<UABGameplayResultWidget>(this, ResultWidgetClass);
+	// ABCHECK(nullptr != ResultWidget);
 
 	ABPlayerState = Cast<AABPlayerState>(PlayerState);
 	ABCHECK(nullptr != ABPlayerState);
